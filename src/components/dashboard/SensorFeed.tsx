@@ -1,73 +1,37 @@
 import { useEffect, useState } from "react";
+import { sensorStream, type SensorTick } from "@/lib/atlas-data";
+import { useSelection } from "@/lib/selection-store";
 
-interface SensorEvent {
-  id: string;
-  code: string;
-  time: string;
-  message: string;
-  tone: "truth" | "caution" | "critical";
-}
-
-const POOL: Omit<SensorEvent, "id" | "time">[] = [
-  { code: "SNSR-492-AMZ", message: "Soil Moisture: 42.1% (Nominal)", tone: "truth" },
-  { code: "SNSR-881-COG", message: "Carbon Flux: +0.42mg/m²", tone: "truth" },
-  { code: "SNSR-112-IND", message: "Tampering Detected: Ch. 04", tone: "critical" },
-  { code: "SNSR-902-AMZ", message: "Sap Flow: Steady", tone: "truth" },
-  { code: "SNSR-204-KEN", message: "Borehole Flow: 14.2 L/min", tone: "truth" },
-  { code: "SNSR-661-IDN", message: "Air Quality drift +0.8σ", tone: "caution" },
-  { code: "SNSR-318-BRA", message: "Canopy NDVI: 0.71", tone: "truth" },
-  { code: "SNSR-445-COL", message: "Solar Output: 4.21 kW", tone: "truth" },
-  { code: "SNSR-991-NGA", message: "Clinic check-ins +12", tone: "truth" },
-  { code: "SNSR-552-PER", message: "Rainfall accumulated 8.4mm", tone: "truth" },
-];
-
-const toneDot: Record<SensorEvent["tone"], string> = {
-  truth: "bg-truth",
-  caution: "bg-caution",
+const sevDot: Record<SensorTick["severity"], string> = {
+  info: "bg-truth",
+  warn: "bg-caution",
   critical: "bg-critical animate-ping",
 };
-const toneText: Record<SensorEvent["tone"], string> = {
-  truth: "text-foreground",
-  caution: "text-caution",
+const sevText: Record<SensorTick["severity"], string> = {
+  info: "text-foreground",
+  warn: "text-caution",
   critical: "text-critical",
 };
-const toneBg: Record<SensorEvent["tone"], string> = {
-  truth: "",
-  caution: "bg-caution/5",
+const sevBg: Record<SensorTick["severity"], string> = {
+  info: "",
+  warn: "bg-caution/5",
   critical: "bg-critical/5",
 };
 
-function nowTime() {
-  const d = new Date();
-  return d.toTimeString().slice(0, 8);
-}
+export function SensorFeed({ onOpenAlerts }: { onOpenAlerts: () => void }) {
+  const [events, setEvents] = useState<SensorTick[]>([]);
+  const { openProject } = useSelection();
 
-export function SensorFeed() {
-  const [events, setEvents] = useState<SensorEvent[]>(() =>
-    POOL.slice(0, 8).map((p, i) => ({
-      ...p,
-      id: `seed-${i}`,
-      time: nowTime(),
-    })),
-  );
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      const pick = POOL[Math.floor(Math.random() * POOL.length)];
-      setEvents((prev) => [
-        { ...pick, id: `${Date.now()}`, time: nowTime() },
-        ...prev.slice(0, 20),
-      ]);
-    }, 2200);
-    return () => clearInterval(t);
-  }, []);
+  useEffect(() => sensorStream.subscribe((tick) => {
+    setEvents((prev) => [tick, ...prev].slice(0, 50));
+  }), []);
 
   return (
-    <aside className="w-80 border-l border-border flex flex-col bg-background">
+    <aside className="w-80 border-l border-border flex flex-col bg-background shrink-0">
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-[10px] font-mono font-medium text-muted-foreground uppercase tracking-widest">
-            Sensor Network
+            Sensor Network · MQTT
           </h3>
           <span className="text-[9px] font-mono text-truth px-1.5 py-0.5 bg-truth/10 rounded">
             LIVE FEED
@@ -93,23 +57,43 @@ export function SensorFeed() {
             </div>
           </div>
         </div>
+        <button
+          onClick={onOpenAlerts}
+          className="mt-3 w-full flex items-center justify-between px-3 py-2 bg-critical/5 ring-1 ring-critical/30 rounded hover:bg-critical/10 transition"
+        >
+          <span className="flex items-center gap-2">
+            <span className="size-1.5 rounded-full bg-critical animate-pulse" />
+            <span className="text-[10px] font-mono uppercase tracking-wider text-critical">
+              AI Alerts
+            </span>
+          </span>
+          <span className="text-[10px] font-mono text-muted-foreground">Open panel →</span>
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-thin divide-y divide-border">
+        {events.length === 0 && (
+          <div className="p-4 text-[10px] font-mono text-muted-foreground/60 uppercase">
+            Awaiting telemetry…
+          </div>
+        )}
         {events.map((e, i) => (
-          <div
+          <button
             key={e.id}
-            className={`p-3 hover:bg-surface/40 transition-colors ${toneBg[e.tone]} ${i === 0 ? "animate-ticker-in" : ""}`}
+            onClick={() => openProject(e.projectId)}
+            className={`w-full text-left p-3 hover:bg-surface/40 transition-colors ${sevBg[e.severity]} ${i === 0 ? "animate-ticker-in" : ""}`}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className={`text-[10px] font-mono ${toneText[e.tone]}`}>{e.code}</span>
+              <span className={`text-[10px] font-mono ${sevText[e.severity]}`}>{e.code}</span>
               <span className="text-[9px] font-mono text-muted-foreground/60">{e.time}</span>
             </div>
             <div className="flex gap-2 items-center">
-              <div className={`size-1.5 rounded-full ${toneDot[e.tone]}`} />
-              <span className="text-xs text-muted-foreground">{e.message}</span>
+              <div className={`size-1.5 rounded-full ${sevDot[e.severity]}`} />
+              <span className="text-xs text-muted-foreground truncate">
+                {e.metric}: <span className="text-foreground/80">{e.value}</span>
+              </span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </aside>
