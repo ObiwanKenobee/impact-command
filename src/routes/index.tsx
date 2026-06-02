@@ -1,29 +1,39 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { CommandHeader } from "@/components/dashboard/CommandHeader";
+import { ModuleRail } from "@/components/dashboard/ModuleRail";
+import { MapCanvas } from "@/components/dashboard/MapCanvas";
+import { SensorFeed } from "@/components/dashboard/SensorFeed";
+import { VerificationPipeline } from "@/components/dashboard/VerificationPipeline";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "Atlas Sanctum — Impact Verification Command" },
+      {
+        name: "description",
+        content:
+          "Mission-control dashboard for verified global impact. IoT sensors, satellite feeds, AI anomaly detection, community validation, blockchain attestations.",
+      },
+      { property: "og:title", content: "Atlas Sanctum — Impact Verification Command" },
+      {
+        property: "og:description",
+        content: "Visualize proof, not reports.",
+      },
     ],
   }),
-  component: Index,
+  component: Dashboard,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function Dashboard() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="h-screen w-full flex flex-col bg-background text-foreground overflow-hidden">
+      <CommandHeader />
+      <main className="flex-1 flex overflow-hidden">
+        <ModuleRail />
+        <MapCanvas />
+        <SensorFeed />
+      </main>
+      <VerificationPipeline />
     </div>
   );
 }
